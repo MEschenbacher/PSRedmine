@@ -2,6 +2,27 @@ Import-module PSRedmine -Force
 
 InModuleScope PSRedmine {
     Describe 'Redmine API' {
+        Context 'Connect-Redmine' {
+
+	    It 'connect with token' {
+		    $env:TOKEN = "token"
+		    Connect-Redmine "https://localhost"
+            }
+
+	    It 'connect with username password' {
+		    $env:USERNAME = "ss"
+		    $env:PASSWORD = "pp"
+		    Connect-Redmine "https://localhost"
+            }
+
+	    It 'connect with all creds' {
+		    Remove-Item Env:\PASSWORD
+		    Remove-Item Env:\TOKEN
+		    $env:USERNAME = "ss"
+		    Connect-Redmine "https://localhost"
+            }
+
+        }
         Context 'New-RedmineResource' {
             Mock Send-HTTPRequest -MockWith { $true } -ParameterFilter { $Method -eq 'POST' -and $Body -and $Uri -like "/projects.json" }
             It 'project' { New-RedmineResource project -identifier test99 -name testproject }

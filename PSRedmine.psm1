@@ -29,6 +29,7 @@ public enum SharingType {
 ##########
 
 Function Connect-Redmine {
+
 <#
    .SYNOPSIS
     Connect to the Redmine server
@@ -46,8 +47,31 @@ Function Connect-Redmine {
         [Parameter(Mandatory=$True)][String]$script:Server
     )
 
-    $Credential = Get-Credential -UserName $env:USERNAME -Message "Credential for $script:Server"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+    $script:Authorization = @{}
+
+    if (Test-Path env:TOKEN) {
+	    $script:Authorization += @{ "X-Redmine-API-Key" = $env:TOKEN }
+    }
+
+    if ((Test-Path env:USERNAME) -and (Test-Path env:PASSWORD)) {
+	    $bytes = [System.Text.Encoding]::UTF8.GetBytes(
+		('{0}:{1}' -f $env:USERNAME, $env:PASSWORD)
+	    )
+	    $script:Authorization += @{
+		    Authorization = 'Basic {0}' -f ([Convert]::ToBase64String($bytes))
+            }
+    } else {
+	    $Credential = Get-Credential -UserName $env:USERNAME -Message "Credential for $script:Server"
+	    $bytes = [System.Text.Encoding]::UTF8.GetBytes(
+		('{0}:{1}' -f $Credential.UserName, $Credential.GetNetworkCredential().Password)
+	    )
+	    $script:Authorization += @{
+		    Authorization = ('Basic {0}' -f ([Convert]::ToBase64String($bytes)))
+            }
+
+    }
 <#
     $WebSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
     $IWRParams = @{
@@ -61,18 +85,6 @@ Function Connect-Redmine {
     $script:WebSession = Get-Variable -name $WebSession -ValueOnly
 #>
 #
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes(
-        ('{0}:{1}' -f $Credential.UserName, $Credential.GetNetworkCredential().Password)
-    )
-    $script:Authorization = 'Basic {0}' -f ([Convert]::ToBase64String($bytes))
-
-    $IWRParams = @{
-        Headers = @{ Authorization = $script:Authorization }
-        Method = 'GET'
-        Uri = $script:Server + '/login'
-    }
-
-    $Response = Invoke-WebRequest @IWRParams
 #>
 
 <#
@@ -115,7 +127,7 @@ Function Send-HTTPRequest {
     )
     $IRMParams = @{
         #WebSession = $script:WebSession
-        Headers = @{ Authorization = $script:Authorization }
+        Headers = $script:Authorization
         Method = $Method
         Uri = $script:Server + $Uri
     }
